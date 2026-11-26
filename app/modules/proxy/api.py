@@ -5,7 +5,17 @@ import json
 import logging
 import math
 import time
-from collections.abc import AsyncIterable, AsyncIterator, Awaitable, Callable, Coroutine, Iterable, Iterator, Mapping
+from collections.abc import (
+    AsyncGenerator,
+    AsyncIterable,
+    AsyncIterator,
+    Awaitable,
+    Callable,
+    Coroutine,
+    Generator,
+    Iterable,
+    Mapping,
+)
 from contextlib import asynccontextmanager, contextmanager
 from dataclasses import dataclass, replace
 from datetime import datetime, timezone
@@ -670,6 +680,9 @@ _CHAT_COMPLETIONS_STARTUP_ERROR_PROBE_SECONDS = 2.0
 _CURSOR_CHAT_COMPLETIONS_STARTUP_ERROR_PROBE_SECONDS = 15.0
 _CURSOR_CONTEXT_LIMIT_SYNTHETIC_USAGE_TOKENS: Final[int] = 1_000_000
 _V1_MAX_OUTPUT_TOKEN_OVERRIDES: Final[dict[str, int]] = {
+    "gpt-6-astra": 128_000,
+    "gpt-6-sol": 128_000,
+    "gpt-6-luna": 128_000,
     "gpt-5.4": 128_000,
     "gpt-5.5": 128_000,
     "gpt-5.4-mini": 128_000,
@@ -1876,7 +1889,7 @@ def _translate_v1_reset_credit_refresh_error(exc: RefreshError) -> HTTPException
 
 
 @asynccontextmanager
-async def _serialize_v1_reset_credit_redeem(account_id: str, *, session: AsyncSession) -> AsyncIterator[None]:
+async def _serialize_v1_reset_credit_redeem(account_id: str, *, session: AsyncSession) -> AsyncGenerator[None]:
     """Serialize the v1 redeem section, mapping claim contention to the OpenAI envelope.
 
     The shared serializer raises ``RedeemClaimTimeoutError`` on SQLite claim
@@ -1895,7 +1908,7 @@ async def _serialize_v1_reset_credit_redeem(account_id: str, *, session: AsyncSe
 
 
 @asynccontextmanager
-async def _v1_reset_credit_accounts_refresh_scope() -> AsyncIterator[AccountsRepository]:
+async def _v1_reset_credit_accounts_refresh_scope() -> AsyncGenerator[AccountsRepository]:
     async with get_background_session() as session:
         yield AccountsRepository(session)
 
@@ -2372,7 +2385,7 @@ async def _guard_chat_bridge_reservation(
     ready, dispatched, rejected = asyncio.Event(), asyncio.Event(), asyncio.Event()
 
     @contextmanager
-    def settlement_signals() -> Iterator[None]:
+    def settlement_signals() -> Generator[None]:
         ready_token = _bind_propagated_responses_service_cleanup_ready(ready)
         dispatched_token = _bind_propagated_responses_owner_forward_dispatched(dispatched)
         rejected_token = _bind_propagated_responses_owner_forward_rejected(rejected)
@@ -9012,8 +9025,7 @@ async def _normalize_public_responses_stream(
     forward_unparseable_data: bool = False,
     preserve_native_failure_lifecycle: bool = False,
 ) -> AsyncIterator[str]:
-    stream = _normalize_reasoning_summary_stream(stream)
-    """Normalize the upstream SSE event stream for the public /v1 surface.
+    """Normalize upstream SSE for public-contract and native Codex clients.
 
     Args:
         stream: the upstream SSE event blocks (post-error-conversion).
@@ -9022,11 +9034,13 @@ async def _normalize_public_responses_stream(
             outside response.* and error, backfill terminal output from streamed
             item events, and synthesize a leading response.created event
             when the upstream stream's first standard event is not
-            response.created. When False (used for /backend-api/codex/*,
-            which feeds the Codex CLI), all events including vendor events are
-            forwarded verbatim and no synthesis happens — the Codex CLI
-            relies on the upstream's native event shape.
+            response.created. OpenAI-shaped /backend-api/codex/responses
+            requests can also enable this contract. When False (native Codex
+            requests), retain vendor events and skip public-only synthesis
+            and terminal output backfill. Shared normalization can still
+            rewrite reasoning, error, and terminal response payloads.
     """
+    stream = _normalize_reasoning_summary_stream(stream)
     terminal_seen = False
     done_seen = False
     unparseable_forwarded = False
