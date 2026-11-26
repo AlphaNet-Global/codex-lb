@@ -14,7 +14,7 @@ from __future__ import annotations
 
 import logging
 import uuid
-from collections.abc import AsyncIterator, Mapping
+from collections.abc import AsyncGenerator, AsyncIterator, Mapping
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime
 
@@ -72,7 +72,7 @@ OTHER_NAMESPACE = "other-tenant"
 
 
 @asynccontextmanager
-async def _client(app) -> AsyncIterator[AsyncClient]:
+async def _client(app) -> AsyncGenerator[AsyncClient]:
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://testserver") as client:
         yield client
 
@@ -718,6 +718,32 @@ async def test_a_cross_site_push_with_a_bearer_is_served_on_its_merits(async_cli
 
 
 @pytest.mark.asyncio
+async def test_an_oversized_stream_stops_at_the_scim_body_limit(async_client: AsyncClient, app_instance) -> None:
+    await _setup_admin(async_client)
+    _, secret = await _issue_token(async_client)
+    consumed: list[int] = []
+
+    async def body() -> AsyncIterator[bytes]:
+        for index, chunk in enumerate((b" " * MAX_BODY_BYTES, b" ", b"unread tail")):
+            consumed.append(index)
+            yield chunk
+
+    async with _client(app_instance) as scim:
+        response = await scim.post(
+            USERS, content=body(), headers={**_auth(secret), "Content-Type": "application/scim+json"}
+        )
+
+    assert response.status_code == 413
+    assert response.headers["content-type"].startswith("application/scim+json")
+    assert response.json()["status"] == "413"
+    assert consumed == [0, 1]
+    async with SessionLocal() as session:
+        assert (
+            await session.execute(select(DashboardIdentity).where(DashboardIdentity.provider == "scim"))
+        ).scalars().first() is None
+
+
+@pytest.mark.asyncio
 async def test_an_oversized_body_is_refused_before_it_is_read(async_client: AsyncClient, app_instance) -> None:
     await _setup_admin(async_client)
     _, secret = await _issue_token(async_client)
@@ -857,7 +883,7 @@ async def test_issuing_is_an_admin_level_delegation_and_revoking_is_not(
 
 
 @asynccontextmanager
-async def _users_service() -> AsyncIterator[DashboardUsersService]:
+async def _users_service() -> AsyncGenerator[DashboardUsersService]:
     """The back-channel service, composed exactly as `get_dashboard_users_context` composes it."""
 
     async with SessionLocal() as session:

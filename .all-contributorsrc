@@ -11,6 +11,15 @@
   "commitConvention": "angular",
   "contributors": [
     {
+      "login": "ale-benassi",
+      "name": "Alessandro Benassi",
+      "avatar_url": "https://avatars.githubusercontent.com/u/18260178?v=4",
+      "profile": "https://alebenassi.com/",
+      "contributions": [
+        "code"
+      ]
+    },
+    {
       "login": "shuhulx",
       "name": "Shuhul",
       "avatar_url": "https://avatars.githubusercontent.com/u/106345809?v=4",
@@ -1535,21 +1544,41 @@
       ]
     },
     {
+      "login": "drakeo338",
+      "name": "Younes Beriane",
+      "avatar_url": "https://avatars.githubusercontent.com/u/328244157?v=4",
+      "profile": "https://github.com/drakeo338",
+      "contributions": [
+        "code"
+      ]
+    },
+    {
+      "login": "TheFoolThatDoesntBelongToThisEra",
+      "name": "⃟",
+      "avatar_url": "https://avatars.githubusercontent.com/u/252236154?v=4",
+      "profile": "https://github.com/TheFoolThatDoesntBelongToThisEra",
+      "contributions": [
+        "code",
+        "test",
+        "doc"
+      ]
+    },
+    {
+      "login": "alinne",
+      "name": "alinne",
+      "avatar_url": "https://avatars.githubusercontent.com/u/3752110?v=4",
+      "profile": "https://github.com/alinne",
+      "contributions": [
+        "code"
+      ]
+    },
+    {
       "login": "EthanW0411",
       "name": "Lianming Wu",
       "avatar_url": "https://avatars.githubusercontent.com/u/28800476?v=4",
       "profile": "https://github.com/EthanW0411",
       "contributions": [
         "infra"
-      ]
-    },
-    {
-      "login": "TheFoolThatDoesntBelongToThisEra",
-      "name": "TheFoolThatDoesntBelongToThisEra",
-      "avatar_url": "https://avatars.githubusercontent.com/u/252236154?v=4",
-      "profile": "https://github.com/TheFoolThatDoesntBelongToThisEra",
-      "contributions": [
-        "code"
       ]
     }
   ],
